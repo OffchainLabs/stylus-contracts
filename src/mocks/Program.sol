@@ -90,7 +90,7 @@ contract ProgramTest {
         return result;
     }
 
-    function fillBlock() external payable {
+    function fillBlockRecover() external payable {
         bytes32 bridgeToNova = 0xeddecf107b5740cef7f5a01e3ea7e287665c4e75a8eb6afae2fda2e3d4367786;
         address cryptoIsCute = 0x361594F5429D23ECE0A88E4fBE529E1c49D524d8;
         uint8 v = 27;
@@ -98,6 +98,13 @@ contract ProgramTest {
         bytes32 s = 0x5fdbcefe2675e96219cdae57a7894280bf80fd40d44ce146a35e169ea6a78fd3;
         while (true) {
             require(ecrecover(bridgeToNova, v, r, s) == cryptoIsCute, "WRONG_ARBINAUT");
+        }
+    }
+
+    function fillBlockHash() external payable {
+        bytes32 hash = 0xeddecf107b5740cef7f5a01e3ea7e287665c4e75a8eb6afae2fda2e3d4367786;
+        while (true) {
+            hash = keccak256(abi.encodePacked(hash));
         }
     }
 }
