@@ -44,7 +44,8 @@ contract OneStepProofEntry is IOneStepProofEntry {
         Machine memory mach;
         Module memory mod;
         MerkleProof memory modProof;
-        Instruction memory inst;
+        uint16 opcode;
+        uint256 argData;
 
         {
             uint256 offset = 0;
@@ -69,16 +70,23 @@ contract OneStepProofEntry is IOneStepProofEntry {
             );
 
             {
-                MerkleProof memory instProof;
+                MerkleProof memory opcodeProof;
+                MerkleProof memory argDataProof;
                 MerkleProof memory funcProof;
-                (inst, offset) = Deserialize.instruction(proof, offset);
-                (instProof, offset) = Deserialize.merkleProof(proof, offset);
+                bytes32 opcodes;
+                (opcodes, offset) = Deserialize.b32(proof, offset);
+                (opcodeProof, offset) = Deserialize.merkleProof(proof, offset);
+                (argData, offset) = Deserialize.u256(proof, offset);
+                (argDataProof, offset) = Deserialize.merkleProof(proof, offset);
                 (funcProof, offset) = Deserialize.merkleProof(proof, offset);
-                bytes32 codeHash = instProof.computeRootFromInstruction(mach.functionPc, inst);
+                bytes32 opcodeHash = opcodeProof.computeRootFromOpcode(mach.functionPc, opcodes);
+                bytes32 argDataHash = argDataProof.computeRootFromArgData(mach.functionPc, bytes32(argData));
                 bytes32 recomputedRoot = funcProof.computeRootFromFunction(
                     mach.functionIdx,
-                    codeHash
+                    opcodeHash,
+                    argDataHash
                 );
+                opcode = uint16(uint256(opcodes));
                 require(recomputedRoot == mod.functionsMerkleRoot, "BAD_FUNCTIONS_ROOT");
             }
             proof = proof[offset:];
@@ -86,7 +94,6 @@ contract OneStepProofEntry is IOneStepProofEntry {
 
         uint256 oldModIdx = mach.moduleIdx;
         mach.functionPc += 1;
-        uint16 opcode = inst.opcode;
         IOneStepProver prover;
         if (
             (opcode >= Instructions.I32_LOAD && opcode <= Instructions.I64_LOAD32_U) ||
@@ -124,7 +131,7 @@ contract OneStepProofEntry is IOneStepProofEntry {
             prover = prover0;
         }
 
-        (mach, mod) = prover.executeOneStep(execCtx, mach, mod, inst, proof);
+        (mach, mod) = prover.executeOneStep(execCtx, mach, mod, Instruction({opcode: opcode, argumentData: argData}), proof);
 
         bool updateRoot = !(opcode == Instructions.LINK_MODULE ||
             opcode == Instructions.UNLINK_MODULE);

@@ -24,20 +24,29 @@ library MerkleProofLib {
         return computeRootUnsafe(proof, index, leaf.hash(), "Value merkle tree:");
     }
 
-    function computeRootFromInstruction(
+    function computeRootFromOpcode(
         MerkleProof memory proof,
         uint256 index,
-        Instruction memory inst
+        bytes32 opcodes
     ) internal pure returns (bytes32) {
-        return computeRootUnsafe(proof, index, Instructions.hash(inst), "Instruction merkle tree:");
+        return computeRootUnsafe(proof, index, opcodes, "Opcode merkle tree:");
+    }
+
+    function computeRootFromArgData(
+        MerkleProof memory proof,
+        uint256 index,
+        bytes32 argData
+    ) internal pure returns (bytes32) {
+        return computeRootUnsafe(proof, index, argData, "Argument data merkle tree:");
     }
 
     function computeRootFromFunction(
         MerkleProof memory proof,
         uint256 index,
-        bytes32 codeRoot
+        bytes32 codeRoot,
+        bytes32 argDataRoot
     ) internal pure returns (bytes32) {
-        bytes32 h = keccak256(abi.encodePacked("Function:", codeRoot));
+        bytes32 h = keccak256(abi.encodePacked("Function:", codeRoot, argDataRoot));
         return computeRootUnsafe(proof, index, h, "Function merkle tree:");
     }
 
