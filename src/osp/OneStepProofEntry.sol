@@ -79,14 +79,22 @@ contract OneStepProofEntry is IOneStepProofEntry {
                 (argData, offset) = Deserialize.u256(proof, offset);
                 (argDataProof, offset) = Deserialize.merkleProof(proof, offset);
                 (funcProof, offset) = Deserialize.merkleProof(proof, offset);
-                bytes32 opcodeHash = opcodeProof.computeRootFromOpcode(mach.functionPc/16, opcodes);
-                bytes32 argDataHash = argDataProof.computeRootFromArgData(mach.functionPc, bytes32(argData));
+                bytes32 opcodeHash = opcodeProof.computeRootFromOpcode(
+                    mach.functionPc / 16,
+                    opcodes
+                );
+                bytes32 argDataHash = argDataProof.computeRootFromArgData(
+                    mach.functionPc,
+                    bytes32(argData)
+                );
                 bytes32 recomputedRoot = funcProof.computeRootFromFunction(
                     mach.functionIdx,
                     opcodeHash,
                     argDataHash
                 );
-                opcode = uint16((uint256(opcodes)>>((15-mach.functionPc%16)*16))&0xffff);
+                opcode = uint16(
+                    (uint256(opcodes) >> (16 * (15 - (mach.functionPc % 16)))) & 0xffff
+                );
                 require(recomputedRoot == mod.functionsMerkleRoot, "BAD_FUNCTIONS_ROOT");
             }
             proof = proof[offset:];
@@ -131,7 +139,13 @@ contract OneStepProofEntry is IOneStepProofEntry {
             prover = prover0;
         }
 
-        (mach, mod) = prover.executeOneStep(execCtx, mach, mod, Instruction({opcode: opcode, argumentData: argData}), proof);
+        (mach, mod) = prover.executeOneStep(
+            execCtx,
+            mach,
+            mod,
+            Instruction({opcode: opcode, argumentData: argData}),
+            proof
+        );
 
         bool updateRoot = !(opcode == Instructions.LINK_MODULE ||
             opcode == Instructions.UNLINK_MODULE);
