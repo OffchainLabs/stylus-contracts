@@ -48,6 +48,7 @@ contract OneStepProofEntry is IOneStepProofEntry {
         uint256 argData;
 
         {
+            bytes calldata emptyLocalsRoot;
             uint256 offset = 0;
             (mach, offset) = Deserialize.machine(proof, offset);
             require(mach.hash() == beforeHash, "MACHINE_BEFORE_HASH");
@@ -73,11 +74,15 @@ contract OneStepProofEntry is IOneStepProofEntry {
                 MerkleProof memory opcodeProof;
                 MerkleProof memory argDataProof;
                 MerkleProof memory funcProof;
+
                 bytes32 opcodes;
                 (opcodes, offset) = Deserialize.b32(proof, offset);
                 (opcodeProof, offset) = Deserialize.merkleProof(proof, offset);
                 (argData, offset) = Deserialize.u256(proof, offset);
                 (argDataProof, offset) = Deserialize.merkleProof(proof, offset);
+                emptyLocalsRoot = proof[offset:offset+32];
+                offset += 32;
+
                 (funcProof, offset) = Deserialize.merkleProof(proof, offset);
                 bytes32 opcodeHash = opcodeProof.computeRootFromOpcode(
                     mach.functionPc / 16,
@@ -90,7 +95,8 @@ contract OneStepProofEntry is IOneStepProofEntry {
                 bytes32 recomputedRoot = funcProof.computeRootFromFunction(
                     mach.functionIdx,
                     opcodeHash,
-                    argDataHash
+                    argDataHash,
+                    bytes32(emptyLocalsRoot)
                 );
                 opcode = uint16(
                     (uint256(opcodes) >> (16 * (15 - (mach.functionPc % 16)))) & 0xffff
@@ -98,6 +104,9 @@ contract OneStepProofEntry is IOneStepProofEntry {
                 require(recomputedRoot == mod.functionsMerkleRoot, "BAD_FUNCTIONS_ROOT");
             }
             proof = proof[offset:];
+            if (opcode == Instructions.INIT_FRAME) {
+                proof = emptyLocalsRoot;
+            }
         }
 
         uint256 oldModIdx = mach.moduleIdx;

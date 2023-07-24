@@ -419,15 +419,16 @@ contract OneStepProver0 is IOneStepProver {
     function executeInitFrame(
         Machine memory mach,
         Module memory,
-        Instruction calldata inst,
-        bytes calldata
+        Instruction calldata,
+        bytes calldata emptyLocalMerkle
     ) internal pure {
         Value memory callerModuleInternals = mach.valueStack.pop();
         Value memory callerModule = mach.valueStack.pop();
         Value memory returnPc = mach.valueStack.pop();
+        // note: emptyLocalMerkle was validated against machineHash in the entry function
         StackFrame memory newFrame = StackFrame({
             returnPc: returnPc,
-            localsMerkleRoot: bytes32(inst.argumentData),
+            localsMerkleRoot: bytes32(emptyLocalMerkle),
             callerModule: callerModule.assumeI32(),
             callerModuleInternals: callerModuleInternals.assumeI32()
         });

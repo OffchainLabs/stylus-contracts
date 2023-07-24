@@ -44,9 +44,10 @@ library MerkleProofLib {
         MerkleProof memory proof,
         uint256 index,
         bytes32 codeRoot,
-        bytes32 argDataRoot
+        bytes32 argDataRoot,
+        bytes32 emptyLocalsRoot
     ) internal pure returns (bytes32) {
-        bytes32 h = keccak256(abi.encodePacked("Function:", codeRoot, argDataRoot));
+        bytes32 h = keccak256(abi.encodePacked("Function:", codeRoot, argDataRoot, emptyLocalsRoot));
         return computeRootUnsafe(proof, index, h, "Function merkle tree:");
     }
 
