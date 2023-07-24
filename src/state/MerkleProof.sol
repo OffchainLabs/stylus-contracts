@@ -50,6 +50,14 @@ library MerkleProofLib {
         return computeRootUnsafe(proof, index, h, "Function merkle tree:");
     }
 
+    function computeRootFromFunctionType(
+        MerkleProof memory proof,
+        uint256 index,
+        bytes32 funcTypeHash
+    ) internal pure returns (bytes32) {
+        return computeRootUnsafe(proof, index, funcTypeHash, "Function type merkle tree:");
+    }
+
     function computeRootFromMemory(
         MerkleProof memory proof,
         uint256 index,
