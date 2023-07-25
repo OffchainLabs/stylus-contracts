@@ -45,7 +45,7 @@ contract OneStepProofEntry is IOneStepProofEntry {
         Module memory mod;
         MerkleProof memory modProof;
         uint16 opcode;
-        uint256 argData;
+        uint64 argData;
 
         {
             bytes calldata emptyLocalsRoot;
@@ -71,37 +71,41 @@ contract OneStepProofEntry is IOneStepProofEntry {
             );
 
             {
-                MerkleProof memory opcodeProof;
-                MerkleProof memory argDataProof;
-                MerkleProof memory funcProof;
+                bytes32 opcodeHash;
+                bytes32 argDataHash;
+                {
+                    bytes32 opcodes;
+                    (opcodes, offset) = Deserialize.b32(proof, offset);
+                    MerkleProof memory opcodeProof;
+                    (opcodeProof, offset) = Deserialize.merkleProof(proof, offset);
+                    opcodeHash = opcodeProof.computeRootFromOpcode(mach.functionPc / 16, opcodes);
+                    opcode = uint16(
+                        (uint256(opcodes) >> (16 * (15 - (mach.functionPc % 16)))) & 0xffff
+                    );
+                }
 
-                bytes32 opcodes;
-                (opcodes, offset) = Deserialize.b32(proof, offset);
-                (opcodeProof, offset) = Deserialize.merkleProof(proof, offset);
-                (argData, offset) = Deserialize.u256(proof, offset);
-                (argDataProof, offset) = Deserialize.merkleProof(proof, offset);
-                emptyLocalsRoot = proof[offset:offset+32];
+                {
+                    bytes32 argDatas;
+                    (argDatas, offset) = Deserialize.b32(proof, offset);
+                    MerkleProof memory argDataProof;
+                    (argDataProof, offset) = Deserialize.merkleProof(proof, offset);
+                    argDataHash = argDataProof.computeRootFromArgData(mach.functionPc, argDatas);
+                    argData = uint64(uint256(argDatas));
+                }
+                emptyLocalsRoot = proof[offset:offset + 32];
                 offset += 32;
 
-                (funcProof, offset) = Deserialize.merkleProof(proof, offset);
-                bytes32 opcodeHash = opcodeProof.computeRootFromOpcode(
-                    mach.functionPc / 16,
-                    opcodes
-                );
-                bytes32 argDataHash = argDataProof.computeRootFromArgData(
-                    mach.functionPc,
-                    bytes32(argData)
-                );
-                bytes32 recomputedRoot = funcProof.computeRootFromFunction(
-                    mach.functionIdx,
-                    opcodeHash,
-                    argDataHash,
-                    bytes32(emptyLocalsRoot)
-                );
-                opcode = uint16(
-                    (uint256(opcodes) >> (16 * (15 - (mach.functionPc % 16)))) & 0xffff
-                );
-                require(recomputedRoot == mod.functionsMerkleRoot, "BAD_FUNCTIONS_ROOT");
+                {
+                    MerkleProof memory funcProof;
+                    (funcProof, offset) = Deserialize.merkleProof(proof, offset);
+                    bytes32 recomputedRoot = funcProof.computeRootFromFunction(
+                        mach.functionIdx,
+                        opcodeHash,
+                        argDataHash,
+                        bytes32(emptyLocalsRoot)
+                    );
+                    require(recomputedRoot == mod.functionsMerkleRoot, "BAD_FUNCTIONS_ROOT");
+                }
             }
             proof = proof[offset:];
             if (opcode == Instructions.INIT_FRAME) {

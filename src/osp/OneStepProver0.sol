@@ -236,7 +236,10 @@ contract OneStepProver0 is IOneStepProver {
 
                 (wantedFuncTypeHash, offset) = Deserialize.b32(proof, offset);
                 (typeMerkleProof, offset) = Deserialize.merkleProof(proof, offset);
-                bytes32 recomputed = typeMerkleProof.computeRootFromFunctionType(typeIdx, wantedFuncTypeHash);
+                bytes32 recomputed = typeMerkleProof.computeRootFromFunctionType(
+                    typeIdx,
+                    wantedFuncTypeHash
+                );
                 require(recomputed == mod.typesMerkleRoot, "BAD_FUNCTYPES_ROOT");
             }
             {

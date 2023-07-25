@@ -35,9 +35,9 @@ library MerkleProofLib {
     function computeRootFromArgData(
         MerkleProof memory proof,
         uint256 index,
-        bytes32 argData
+        bytes32 argDatas
     ) internal pure returns (bytes32) {
-        return computeRootUnsafe(proof, index, argData, "Argument data merkle tree:");
+        return computeRootUnsafe(proof, index, argDatas, "Argument data merkle tree:");
     }
 
     function computeRootFromFunction(
@@ -47,7 +47,9 @@ library MerkleProofLib {
         bytes32 argDataRoot,
         bytes32 emptyLocalsRoot
     ) internal pure returns (bytes32) {
-        bytes32 h = keccak256(abi.encodePacked("Function:", codeRoot, argDataRoot, emptyLocalsRoot));
+        bytes32 h = keccak256(
+            abi.encodePacked("Function:", codeRoot, argDataRoot, emptyLocalsRoot)
+        );
         return computeRootUnsafe(proof, index, h, "Function merkle tree:");
     }
 
