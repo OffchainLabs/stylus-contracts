@@ -89,8 +89,14 @@ contract OneStepProofEntry is IOneStepProofEntry {
                     (argDatas, offset) = Deserialize.b32(proof, offset);
                     MerkleProof memory argDataProof;
                     (argDataProof, offset) = Deserialize.merkleProof(proof, offset);
-                    argDataHash = argDataProof.computeRootFromArgData(mach.functionPc, argDatas);
-                    argData = uint64(uint256(argDatas));
+                    argDataHash = argDataProof.computeRootFromArgData(
+                        mach.functionPc / 4,
+                        argDatas
+                    );
+                    argData = uint64(
+                        (uint256(argDatas) >> (64 * (3 - (mach.functionPc % 4)))) &
+                            0xffffffffffffffff
+                    );
                 }
                 emptyLocalsRoot = proof[offset:offset + 32];
                 offset += 32;
