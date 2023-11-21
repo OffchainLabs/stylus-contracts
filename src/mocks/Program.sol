@@ -8,6 +8,23 @@ import "../precompiles/ArbSys.sol";
 contract ProgramTest {
     event Hash(bytes32 result);
 
+    fallback(bytes calldata input) external returns (bytes memory) {
+        // For stylus reentrancy tests
+        address addr = abi.decode(input, (address));
+        bytes memory data = input[:];
+
+        if (data[64] == 0) {
+            (bool delegateSuccess, bytes memory delegateResult) = addr.delegatecall(data);
+            require(delegateSuccess, "call failed");
+            return delegateResult;
+        }
+
+        data[64] = bytes1(uint8(data[64]) - 1);
+        (bool success, bytes memory result) = addr.call(data);
+        require(success, "call failed");
+        return result;
+    }
+
     function callKeccak(address program, bytes calldata data) external {
         // in keccak.rs
         //     the input is the # of hashings followed by a preimage
@@ -51,6 +68,7 @@ contract ProgramTest {
         bytes calldata data
     ) external view returns (bytes memory) {
         (bool success, bytes memory result) = address(program).staticcall{gas: gas}(data);
+        require(success, "call failed");
 
         address arbPrecompile = address(0x69);
         address ethPrecompile = address(0x01);
