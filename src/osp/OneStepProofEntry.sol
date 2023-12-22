@@ -44,9 +44,11 @@ contract OneStepProofEntry is IOneStepProofEntry {
         Machine memory mach;
         Module memory mod;
         MerkleProof memory modProof;
-        Instruction memory inst;
+        uint16 opcode;
+        uint64 argData;
 
         {
+            bytes calldata emptyLocalsRoot;
             uint256 offset = 0;
             (mach, offset) = Deserialize.machine(proof, offset);
             require(mach.hash() == beforeHash, "MACHINE_BEFORE_HASH");
@@ -69,24 +71,56 @@ contract OneStepProofEntry is IOneStepProofEntry {
             );
 
             {
-                MerkleProof memory instProof;
-                MerkleProof memory funcProof;
-                (inst, offset) = Deserialize.instruction(proof, offset);
-                (instProof, offset) = Deserialize.merkleProof(proof, offset);
-                (funcProof, offset) = Deserialize.merkleProof(proof, offset);
-                bytes32 codeHash = instProof.computeRootFromInstruction(mach.functionPc, inst);
-                bytes32 recomputedRoot = funcProof.computeRootFromFunction(
-                    mach.functionIdx,
-                    codeHash
-                );
-                require(recomputedRoot == mod.functionsMerkleRoot, "BAD_FUNCTIONS_ROOT");
+                bytes32 opcodeHash;
+                bytes32 argDataHash;
+                {
+                    bytes32 opcodes;
+                    (opcodes, offset) = Deserialize.b32(proof, offset);
+                    MerkleProof memory opcodeProof;
+                    (opcodeProof, offset) = Deserialize.merkleProof(proof, offset);
+                    opcodeHash = opcodeProof.computeRootFromOpcode(mach.functionPc / 16, opcodes);
+                    opcode = uint16(
+                        (uint256(opcodes) >> (16 * (15 - (mach.functionPc % 16)))) & 0xffff
+                    );
+                }
+
+                {
+                    bytes32 argDatas;
+                    (argDatas, offset) = Deserialize.b32(proof, offset);
+                    MerkleProof memory argDataProof;
+                    (argDataProof, offset) = Deserialize.merkleProof(proof, offset);
+                    argDataHash = argDataProof.computeRootFromArgData(
+                        mach.functionPc / 4,
+                        argDatas
+                    );
+                    argData = uint64(
+                        (uint256(argDatas) >> (64 * (3 - (mach.functionPc % 4)))) &
+                            0xffffffffffffffff
+                    );
+                }
+                emptyLocalsRoot = proof[offset:offset + 32];
+                offset += 32;
+
+                {
+                    MerkleProof memory funcProof;
+                    (funcProof, offset) = Deserialize.merkleProof(proof, offset);
+                    bytes32 recomputedRoot = funcProof.computeRootFromFunction(
+                        mach.functionIdx,
+                        opcodeHash,
+                        argDataHash,
+                        bytes32(emptyLocalsRoot)
+                    );
+                    require(recomputedRoot == mod.functionsMerkleRoot, "BAD_FUNCTIONS_ROOT");
+                }
             }
             proof = proof[offset:];
+            if (opcode == Instructions.INIT_FRAME) {
+                proof = emptyLocalsRoot;
+            }
         }
 
         uint256 oldModIdx = mach.moduleIdx;
         mach.functionPc += 1;
-        uint16 opcode = inst.opcode;
         IOneStepProver prover;
         if (
             (opcode >= Instructions.I32_LOAD && opcode <= Instructions.I64_LOAD32_U) ||
@@ -124,7 +158,13 @@ contract OneStepProofEntry is IOneStepProofEntry {
             prover = prover0;
         }
 
-        (mach, mod) = prover.executeOneStep(execCtx, mach, mod, inst, proof);
+        (mach, mod) = prover.executeOneStep(
+            execCtx,
+            mach,
+            mod,
+            Instruction({opcode: opcode, argumentData: argData}),
+            proof
+        );
 
         bool updateRoot = !(opcode == Instructions.LINK_MODULE ||
             opcode == Instructions.UNLINK_MODULE);

@@ -240,23 +240,29 @@ contract OneStepProver0 is IOneStepProver {
             bytes32 wantedFuncTypeHash;
             uint256 offset = 0;
             {
-                uint64 tableIdx;
+                uint32 typeIdx;
+                MerkleProof memory typeMerkleProof;
+                typeIdx = uint32(inst.argumentData >> 32);
+
+                (wantedFuncTypeHash, offset) = Deserialize.b32(proof, offset);
+                (typeMerkleProof, offset) = Deserialize.merkleProof(proof, offset);
+                bytes32 recomputed = typeMerkleProof.computeRootFromFunctionType(
+                    typeIdx,
+                    wantedFuncTypeHash
+                );
+                require(recomputed == mod.typesMerkleRoot, "BAD_FUNCTYPES_ROOT");
+            }
+            {
+                uint32 tableIdx;
                 uint8 tableType;
                 uint64 tableSize;
                 MerkleProof memory tableMerkleProof;
-                (tableIdx, offset) = Deserialize.u64(proof, offset);
-                (wantedFuncTypeHash, offset) = Deserialize.b32(proof, offset);
+                tableIdx = uint32(inst.argumentData);
                 (tableType, offset) = Deserialize.u8(proof, offset);
                 (tableSize, offset) = Deserialize.u64(proof, offset);
                 (elemsRoot, offset) = Deserialize.b32(proof, offset);
                 (tableMerkleProof, offset) = Deserialize.merkleProof(proof, offset);
-
-                // Validate the information by recomputing known hashes
-                bytes32 recomputed = keccak256(
-                    abi.encodePacked("Call indirect:", tableIdx, wantedFuncTypeHash)
-                );
-                require(recomputed == bytes32(inst.argumentData), "BAD_CALL_INDIRECT_DATA");
-                recomputed = tableMerkleProof.computeRootFromTable(
+                bytes32 recomputed = tableMerkleProof.computeRootFromTable(
                     tableIdx,
                     tableType,
                     tableSize,
@@ -426,15 +432,16 @@ contract OneStepProver0 is IOneStepProver {
     function executeInitFrame(
         Machine memory mach,
         Module memory,
-        Instruction calldata inst,
-        bytes calldata
+        Instruction calldata,
+        bytes calldata emptyLocalMerkle
     ) internal pure {
         Value memory callerModuleInternals = mach.valueStack.pop();
         Value memory callerModule = mach.valueStack.pop();
         Value memory returnPc = mach.valueStack.pop();
+        // note: emptyLocalMerkle was validated against machineHash in the entry function
         StackFrame memory newFrame = StackFrame({
             returnPc: returnPc,
-            localsMerkleRoot: bytes32(inst.argumentData),
+            localsMerkleRoot: bytes32(emptyLocalMerkle),
             callerModule: callerModule.assumeI32(),
             callerModuleInternals: callerModuleInternals.assumeI32()
         });

@@ -130,19 +130,6 @@ library Deserialize {
         stack = ValueStack({proved: ValueArray(proved), remainingHash: remainingHash});
     }
 
-    function instruction(bytes calldata proof, uint256 startOffset)
-        internal
-        pure
-        returns (Instruction memory inst, uint256 offset)
-    {
-        offset = startOffset;
-        uint16 opcode;
-        uint256 data;
-        (opcode, offset) = u16(proof, offset);
-        (data, offset) = u256(proof, offset);
-        inst = Instruction({opcode: opcode, argumentData: data});
-    }
-
     function stackFrame(bytes calldata proof, uint256 startOffset)
         internal
         pure
@@ -255,17 +242,20 @@ library Deserialize {
         ModuleMemory memory mem;
         bytes32 tablesMerkleRoot;
         bytes32 functionsMerkleRoot;
+        bytes32 typesMerkleRoot;
         uint32 internalsOffset;
         (globalsMerkleRoot, offset) = b32(proof, offset);
         (mem, offset) = moduleMemory(proof, offset);
         (tablesMerkleRoot, offset) = b32(proof, offset);
         (functionsMerkleRoot, offset) = b32(proof, offset);
+        (typesMerkleRoot, offset) = b32(proof, offset);
         (internalsOffset, offset) = u32(proof, offset);
         mod = Module({
             globalsMerkleRoot: globalsMerkleRoot,
             moduleMemory: mem,
             tablesMerkleRoot: tablesMerkleRoot,
             functionsMerkleRoot: functionsMerkleRoot,
+            typesMerkleRoot: typesMerkleRoot,
             internalsOffset: internalsOffset
         });
     }

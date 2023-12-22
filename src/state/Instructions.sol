@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
 
 struct Instruction {
     uint16 opcode;
-    uint256 argumentData;
+    uint64 argumentData;
 }
 
 library Instructions {
