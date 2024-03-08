@@ -1,16 +1,18 @@
-// Copyright 2021-2022, Offchain Labs, Inc.
+// Copyright 2021-2024, Offchain Labs, Inc.
 // For license information, see https://github.com/OffchainLabs/nitro-contracts/blob/main/LICENSE
 // SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity >=0.4.21 <0.9.0;
 
-/// @title Provides owners with tools for managing the rollup.
-/// @notice Calls by non-owners will always revert.
-/// Most of Arbitrum Classic's owner methods have been removed since they no longer make sense in Nitro:
-/// - What were once chain parameters are now parts of ArbOS's state, and those that remain are set at genesis.
-/// - ArbOS upgrades happen with the rest of the system rather than being independent
-/// - Exemptions to address aliasing are no longer offered. Exemptions were intended to support backward compatibility for contracts deployed before aliasing was introduced, but no exemptions were ever requested.
-/// Precompiled contract that exists in every Arbitrum chain at 0x0000000000000000000000000000000000000070.
+/**
+ * @title Provides owners with tools for managing the rollup.
+ * @notice Calls by non-owners will always revert.
+ * Most of Arbitrum Classic's owner methods have been removed since they no longer make sense in Nitro:
+ * - What were once chain parameters are now parts of ArbOS's state, and those that remain are set at genesis.
+ * - ArbOS upgrades happen with the rest of the system rather than being independent
+ * - Exemptions to address aliasing are no longer offered. Exemptions were intended to support backward compatibility for contracts deployed before aliasing was introduced, but no exemptions were ever requested.
+ * Precompiled contract that exists in every Arbitrum chain at 0x0000000000000000000000000000000000000070.
+ **/
 interface ArbOwner {
     /// @notice Add account as a chain owner
     function addChainOwner(address newOwner) external;
@@ -84,9 +86,37 @@ interface ArbOwner {
     /// @notice Releases surplus funds from L1PricerFundsPoolAddress for use
     function releaseL1PricerSurplusFunds(uint256 maxWeiToRelease) external returns (uint256);
 
+    /// @notice sets the amount of ink 1 gas buys
+    /// @param price the conversion rate (must fit in a uint24)
+    function setInkPrice(uint32 price) external;
+
+    /// @notice sets the maximum depth (in wasm words) a wasm stack may grow
+    function setWasmMaxStackDepth(uint32 depth) external;
+
+    /// @notice sets the number of free wasm pages a tx gets
+    function setWasmFreePages(uint16 pages) external;
+
+    /// @notice sets the base cost of each additional wasm page
+    function setWasmPageGas(uint16 gas) external;
+
+    /// @notice sets the ramp that drives exponential wasm memory costs
+    function setWasmPageRamp(uint64 ramp) external;
+
+    /// @notice sets the maximum number of pages a wasm may allocate
+    function setWasmPageLimit(uint16 limit) external;
+
+    /// @notice sets the minimum cost to invoke a program
+    function setWasmMinInitGas(uint16 gas) external;
+
+    /// @notice sets the number of days after which programs deactivate
+    function setWasmExpiryDays(uint16 _days) external;
+
+    /// @notice sets the age a program must be to perform a keepalive
+    function setWasmKeepaliveDays(uint16 _days) external;
+
     /// @notice Sets serialized chain config in ArbOS state
     function setChainConfig(string calldata chainConfig) external;
 
-    // Emitted when a successful call is made to this precompile
+    /// Emitted when a successful call is made to this precompile
     event OwnerActs(bytes4 indexed method, address indexed owner, bytes data);
 }

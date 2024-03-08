@@ -7,6 +7,7 @@ pragma solidity ^0.8.0;
 import "./Value.sol";
 import "./ValueStack.sol";
 import "./Machine.sol";
+import "./MultiStack.sol";
 import "./Instructions.sol";
 import "./StackFrame.sol";
 import "./MerkleProof.sol";
@@ -88,6 +89,16 @@ library Deserialize {
         ret = bytes32(retInt);
     }
 
+    function boolean(bytes calldata proof, uint256 startOffset)
+        internal
+        pure
+        returns (bool ret, uint256 offset)
+    {
+        offset = startOffset;
+        ret = uint8(proof[offset]) != 0;
+        offset++;
+    }
+
     function value(bytes calldata proof, uint256 startOffset)
         internal
         pure
@@ -117,6 +128,22 @@ library Deserialize {
             (proved[i], offset) = value(proof, offset);
         }
         stack = ValueStack({proved: ValueArray(proved), remainingHash: remainingHash});
+    }
+
+    function multiStack(bytes calldata proof, uint256 startOffset)
+        internal
+        pure
+        returns (MultiStack memory multistack, uint256 offset)
+    {
+        offset = startOffset;
+        bytes32 inactiveStackHash;
+        (inactiveStackHash, offset) = b32(proof, offset);
+        bytes32 remainingHash;
+        (remainingHash, offset) = b32(proof, offset);
+        multistack = MultiStack({
+            inactiveStackHash: inactiveStackHash,
+            remainingHash: remainingHash
+        });
     }
 
     function instruction(bytes calldata proof, uint256 startOffset)
@@ -240,49 +267,54 @@ library Deserialize {
         returns (Machine memory mach, uint256 offset)
     {
         offset = startOffset;
-        MachineStatus status;
         {
-            uint8 statusU8;
-            (statusU8, offset) = u8(proof, offset);
-            if (statusU8 == 0) {
-                status = MachineStatus.RUNNING;
-            } else if (statusU8 == 1) {
-                status = MachineStatus.FINISHED;
-            } else if (statusU8 == 2) {
-                status = MachineStatus.ERRORED;
-            } else if (statusU8 == 3) {
-                status = MachineStatus.TOO_FAR;
-            } else {
-                revert("UNKNOWN_MACH_STATUS");
+            MachineStatus status;
+            {
+                uint8 statusU8;
+                (statusU8, offset) = u8(proof, offset);
+                if (statusU8 == 0) {
+                    status = MachineStatus.RUNNING;
+                } else if (statusU8 == 1) {
+                    status = MachineStatus.FINISHED;
+                } else if (statusU8 == 2) {
+                    status = MachineStatus.ERRORED;
+                } else if (statusU8 == 3) {
+                    status = MachineStatus.TOO_FAR;
+                } else {
+                    revert("UNKNOWN_MACH_STATUS");
+                }
             }
+            ValueStack memory values;
+            ValueStack memory internalStack;
+            MultiStack memory valuesMulti;
+            StackFrameWindow memory frameStack;
+            MultiStack memory framesMulti;
+            (values, offset) = valueStack(proof, offset);
+            (valuesMulti, offset) = multiStack(proof, offset);
+            (internalStack, offset) = valueStack(proof, offset);
+            (frameStack, offset) = stackFrameWindow(proof, offset);
+            (framesMulti, offset) = multiStack(proof, offset);
+            mach = Machine({
+                status: status,
+                valueStack: values,
+                valueMultiStack: valuesMulti,
+                internalStack: internalStack,
+                frameStack: frameStack,
+                frameMultiStack: framesMulti,
+                globalStateHash: bytes32(0), // filled later
+                moduleIdx: 0, // filled later
+                functionIdx: 0, // filled later
+                functionPc: 0, // filled later
+                recoveryPc: bytes32(0), // filled later
+                modulesRoot: bytes32(0) // filled later
+            });
         }
-        ValueStack memory values;
-        ValueStack memory internalStack;
-        bytes32 globalStateHash;
-        uint32 moduleIdx;
-        uint32 functionIdx;
-        uint32 functionPc;
-        StackFrameWindow memory frameStack;
-        bytes32 modulesRoot;
-        (values, offset) = valueStack(proof, offset);
-        (internalStack, offset) = valueStack(proof, offset);
-        (frameStack, offset) = stackFrameWindow(proof, offset);
-        (globalStateHash, offset) = b32(proof, offset);
-        (moduleIdx, offset) = u32(proof, offset);
-        (functionIdx, offset) = u32(proof, offset);
-        (functionPc, offset) = u32(proof, offset);
-        (modulesRoot, offset) = b32(proof, offset);
-        mach = Machine({
-            status: status,
-            valueStack: values,
-            internalStack: internalStack,
-            frameStack: frameStack,
-            globalStateHash: globalStateHash,
-            moduleIdx: moduleIdx,
-            functionIdx: functionIdx,
-            functionPc: functionPc,
-            modulesRoot: modulesRoot
-        });
+        (mach.globalStateHash, offset) = b32(proof, offset);
+        (mach.moduleIdx, offset) = u32(proof, offset);
+        (mach.functionIdx, offset) = u32(proof, offset);
+        (mach.functionPc, offset) = u32(proof, offset);
+        (mach.recoveryPc, offset) = b32(proof, offset);
+        (mach.modulesRoot, offset) = b32(proof, offset);
     }
 
     function merkleProof(bytes calldata proof, uint256 startOffset)
