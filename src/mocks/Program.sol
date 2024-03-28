@@ -9,6 +9,10 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 contract ProgramTest {
     event Hash(bytes32 result);
 
+    function callSelfDestruct(address addr) external {
+        selfdestruct(payable(addr));
+    }
+
     function callKeccak(address program, bytes calldata data) external {
         // in keccak.rs
         //     the input is the # of hashings followed by a preimage
