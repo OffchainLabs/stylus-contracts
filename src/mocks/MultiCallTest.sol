@@ -44,7 +44,7 @@ contract MultiCallTest {
             uint8 kind = uint8(curr[0]);
             curr = curr[1:];
 
-            if (kind & 0xf0 == 0x0)  {
+            if (kind & 0xf0 == 0x0) {
                 // call
                 uint256 value;
                 if (kind & 0x3 == 0) {
@@ -83,7 +83,7 @@ contract MultiCallTest {
                     emit Called(addr, count, success, out);
                 }
                 output = bytes.concat(output, out);
-            } else if (kind & 0xf0 == 0x10)  {
+            } else if (kind & 0xf0 == 0x10) {
                 // storage
                 bytes32 slot = bytes32(curr[:32]);
                 curr = curr[32:];
@@ -95,7 +95,7 @@ contract MultiCallTest {
                     assembly {
                         sstore(slot, data)
                     }
-                } else if (kind & 0x3 == 1){
+                } else if (kind & 0x3 == 1) {
                     write = false;
                     assembly {
                         data := sload(slot)
